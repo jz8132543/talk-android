@@ -1,41 +1,79 @@
+# .github/workflows/sync.yml
 name: Daily Upstream Sync
+
 on:
   schedule:
-    - cron: '0 3 * * *'   # 每天同步一次
+    - cron: '0 3 * * *' # 每天同步一次
   workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout your fork
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Add upstream remote
-        run: git remote add upstream https://github.com/nextcloud/talk-android.git
+      - name: Configure Git Identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Setup upstream remote
+        run: |
+          if ! git remote | grep -q "^upstream$"; then
+            git remote add upstream https://github.com/nextcloud/talk-android.git
+          else
+            git remote set-url upstream https://github.com/nextcloud/talk-android.git
+          fi
 
       - name: Fetch upstream
         run: git fetch upstream master
 
-      - name: Merge upstream but protect your own workflow files
+      - name: Merge upstream and protect custom workflows
         run: |
-          # 备份你自己的 workflow 目录
-          mkdir -p /tmp/my-workflows
-          cp -r .github/workflows/. /tmp/my-workflows/
+          echo "Backing up custom workflow files..."
+          mkdir -p /tmp/custom-workflows
+          for file in build-release.yml sync.yml; do
+            if [ -f ".github/workflows/$file" ]; then
+              cp ".github/workflows/$file" "/tmp/custom-workflows/$file"
+            fi
+          done
 
-          # 合并上游代码（可能产生冲突，需要策略处理）
-          git merge upstream/master --no-edit -X theirs || true
+          echo "Merging upstream/master..."
+          if ! git merge upstream/master --no-edit -m "chore: sync upstream master" -X theirs; then
+            echo "Git merge encountered unresolvable conflicts, aborting..."
+            git merge --abort
+            exit 1
+          fi
 
-          # 用你自己的 workflow 文件覆盖回去，防止被上游覆盖
-          cp -r /tmp/my-workflows/. .github/workflows/
+          echo "Restoring custom workflow files..."
+          for file in /tmp/custom-workflows/*; do
+            if [ -f "$file" ]; then
+              cp "$file" ".github/workflows/$(basename "$file")"
+            fi
+          done
 
       - name: Commit and push
         run: |
-          git config user.name "sync-bot"
-          git config user.email "sync-bot@users.noreply.github.com"
-          git add -A
-          git commit -m "chore: daily sync from upstream" || echo "nothing to commit"
-          git push origin HEAD
+          git add .github/workflows/
+          if git status --porcelain | grep -q .; then
+            git commit -m "chore: preserve custom workflows after upstream sync" || true
+          fi
+
+          if git rev-parse --verify origin/master >/dev/null 2>&1; then
+            if [ "$(git rev-parse HEAD)" = "$(git rev-parse origin/master)" ]; then
+              echo "Already up to date with origin/master. Nothing to push."
+              exit 0
+            fi
+          fi
+
+          echo "Pushing changes to origin..."
+          git push origin HEAD:master
+
