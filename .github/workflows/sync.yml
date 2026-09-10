@@ -4,6 +4,9 @@ on:
     - cron: '0 3 * * *'   # 每天同步一次
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -22,6 +25,9 @@ jobs:
 
       - name: Merge upstream but protect your own workflow files
         run: |
+          git config user.name "sync-bot"
+          git config user.email "sync-bot@users.noreply.github.com"
+
           # 备份你自己的 workflow 目录
           mkdir -p /tmp/my-workflows
           cp -r .github/workflows/. /tmp/my-workflows/
@@ -34,8 +40,6 @@ jobs:
 
       - name: Commit and push
         run: |
-          git config user.name "sync-bot"
-          git config user.email "sync-bot@users.noreply.github.com"
           git add -A
           git commit -m "chore: daily sync from upstream" || echo "nothing to commit"
           git push origin HEAD
