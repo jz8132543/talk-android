@@ -1,0 +1,41 @@
+name: Daily Upstream Sync
+on:
+  schedule:
+    - cron: '0 3 * * *'   # 每天同步一次
+  workflow_dispatch:
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout your fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/nextcloud/talk-android.git
+
+      - name: Fetch upstream
+        run: git fetch upstream master
+
+      - name: Merge upstream but protect your own workflow files
+        run: |
+          # 备份你自己的 workflow 目录
+          mkdir -p /tmp/my-workflows
+          cp -r .github/workflows/. /tmp/my-workflows/
+
+          # 合并上游代码（可能产生冲突，需要策略处理）
+          git merge upstream/master --no-edit -X theirs || true
+
+          # 用你自己的 workflow 文件覆盖回去，防止被上游覆盖
+          cp -r /tmp/my-workflows/. .github/workflows/
+
+      - name: Commit and push
+        run: |
+          git config user.name "sync-bot"
+          git config user.email "sync-bot@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: daily sync from upstream" || echo "nothing to commit"
+          git push origin HEAD

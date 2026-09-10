@@ -1,0 +1,60 @@
+# .github/workflows/build-release.yml
+name: Build Custom Nextcloud Talk Release
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # 每周日自动运行
+  workflow_dispatch: # 允许手动触发
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout upstream repository
+        uses: actions/checkout@v4
+        with:
+          repository: nextcloud/talk-android
+          ref: master
+          fetch-depth: 1
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Patch Video Resolution Limits
+        run: |
+          echo "Patching resolution and FPS limits..."
+          FILE="app/src/main/java/com/nextcloud/talk/activities/CallActivity.kt"
+          sed -i 's/private const val FRAME_RATE: Int = .*/private const val FRAME_RATE: Int = 180/' "$FILE"
+          sed -i 's/private const val WIDTH_16_TO_9_RATIO: Int = .*/private const val WIDTH_16_TO_9_RATIO: Int = 7680/' "$FILE"
+          sed -i 's/private const val HEIGHT_16_TO_9_RATIO: Int = .*/private const val HEIGHT_16_TO_9_RATIO: Int = 4320/' "$FILE"
+          sed -i 's/private const val WIDTH_4_TO_3_RATIO: Int = .*/private const val WIDTH_4_TO_3_RATIO: Int = 7680/' "$FILE"
+          sed -i 's/private const val HEIGHT_4_TO_3_RATIO: Int = .*/private const val HEIGHT_4_TO_3_RATIO: Int = 4320/' "$FILE"
+          grep -n "FRAME_RATE\|WIDTH_\|HEIGHT_" "$FILE" | tail -n 5
+
+      - name: Gradle validate
+        uses: gradle/actions/wrapper-validation@v5
+
+      - name: Build Release APK
+        run: |
+          echo "org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8" >> gradle.properties
+          ./gradlew --no-daemon assembleGenericRelease
+
+      - name: Sign Release APK
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: app/build/outputs/apk/generic/release
+          signingKeyBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          alias: ${{ secrets.KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+
+      - name: Upload Signed Release APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nextcloud-Talk-Custom-8K-Release
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          retention-days: 5
