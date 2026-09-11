@@ -125,7 +125,7 @@ jobs:
         with:
           name: Nextcloud-Talk-Custom-8K-Release-Unsigned
           path: app/build/outputs/apk/generic/release/*.apk
-                    retention-days: 7
+          retention-days: 7
 
       - name: Create Release (Unsigned APK)
         if: steps.check_keystore.outputs.has_keystore != 'true'
