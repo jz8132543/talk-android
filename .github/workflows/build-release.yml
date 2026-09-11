@@ -2,6 +2,7 @@
 name: Build Custom Nextcloud Talk Release
 
 on:
+# manual trigger enabled
   push:
     branches: [ main, master ]
   schedule:
