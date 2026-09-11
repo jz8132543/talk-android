@@ -2,9 +2,11 @@
 name: Build Custom Nextcloud Talk Release
 
 on:
+  push:
+    branches: [ main, master ]
   schedule:
     - cron: '0 0 * * 0' # 每周日自动运行
-  workflow_dispatch: # 允许手动触发
+  workflow_dispatch:
     inputs:
       upstream_repo:
         description: 'Repository to build (leave empty for current repository)'
