@@ -42,10 +42,12 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Install Android SDK Build Tools
-        uses: android-actions/setup-android@v2
-        with:
-          api-level: 33
-          build-tools: 35.0.0
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-37" "build-tools;35.0.0"
 
       - name: Patch Video Resolution Limits
         run: |
@@ -101,12 +103,21 @@ jobs:
           BUILD_TOOLS_VERSION: "35.0.0"
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
 
+      - name: Normalize Signed Release APK
+        if: steps.check_keystore.outputs.has_keystore == 'true'
+        id: signed_artifact
+        run: |
+          signed_apk="${{ steps.sign_app.outputs.signedReleaseFile }}"
+          renamed_apk="${signed_apk/unsigned-signed/signed}"
+          mv "$signed_apk" "$renamed_apk"
+          echo "signedReleaseFile=$renamed_apk" >> "$GITHUB_OUTPUT"
+
       - name: Upload Signed Release APK Artifact
         if: steps.check_keystore.outputs.has_keystore == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Nextcloud-Talk-Custom-8K-Release-Signed
-          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          path: ${{ steps.signed_artifact.outputs.signedReleaseFile }}
           retention-days: 7
 
       - name: Create Release (Signed APK)
@@ -118,7 +129,7 @@ jobs:
           prerelease: true
           body: |
             自动生成的 CI Release，包含已签名的 8K APK。
-          files: ${{ steps.sign_app.outputs.signedReleaseFile }}
+          files: ${{ steps.signed_artifact.outputs.signedReleaseFile }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
