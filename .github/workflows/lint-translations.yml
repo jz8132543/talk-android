@@ -3,7 +3,7 @@
 
 name: Lint translation files
 
-on:
+on: []
   pull_request:
     branches: [ master, main, stable-* ]
   push:

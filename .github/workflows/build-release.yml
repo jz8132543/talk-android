@@ -105,11 +105,37 @@ jobs:
           path: ${{ steps.sign_app.outputs.signedReleaseFile }}
           retention-days: 7
 
+      - name: Create Release (Signed APK)
+        if: steps.check_keystore.outputs.has_keystore == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "ci-${{ github.sha }}"
+          name: "CI Build ${{ github.sha }}"
+          prerelease: true
+          body: |
+            自动生成的 CI Release，包含已签名的 8K APK。
+          files: ${{ steps.sign_app.outputs.signedReleaseFile }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload Unsigned Release APK Artifact
         if: steps.check_keystore.outputs.has_keystore != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Nextcloud-Talk-Custom-8K-Release-Unsigned
           path: app/build/outputs/apk/generic/release/*.apk
-          retention-days: 7
+                    retention-days: 7
+
+      - name: Create Release (Unsigned APK)
+        if: steps.check_keystore.outputs.has_keystore != 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "ci-${{ github.sha }}"
+          name: "CI Build ${{ github.sha }} (unsigned)"
+          prerelease: true
+          body: |
+            自动生成的 CI Release（未签名），包含 8K APK。
+          files: app/build/outputs/apk/generic/release/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

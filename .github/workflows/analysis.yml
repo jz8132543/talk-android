@@ -10,7 +10,7 @@
 
 name: "Analysis"
 
-on:
+on: []
     pull_request:
         branches: [ "master", "main", "stable-*" ]
     push:

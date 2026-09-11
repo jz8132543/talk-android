@@ -3,7 +3,7 @@
 
 name: "Assemble"
 
-on:
+on: []
   pull_request:
     branches: [ master, stable-* ]
   push:

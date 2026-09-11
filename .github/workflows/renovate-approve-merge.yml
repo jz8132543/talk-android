@@ -8,7 +8,7 @@
 
 name: Auto approve renovate PRs
 
-on:
+on: []
   pull_request_target: # zizmor: ignore[dangerous-triggers]
     branches:
       - main

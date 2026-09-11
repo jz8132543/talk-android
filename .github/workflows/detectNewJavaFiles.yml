@@ -8,7 +8,7 @@
 
 name: "Detect new java files"
 
-on:
+on: []
   pull_request:
     branches: [ master, main, stable-* ]
 

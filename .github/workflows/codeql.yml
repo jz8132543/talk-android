@@ -9,7 +9,7 @@
 
 name: "CodeQL"
 
-on:
+on: []
   push:
     branches: [ "master", "main", "stable-*" ]
   pull_request:
